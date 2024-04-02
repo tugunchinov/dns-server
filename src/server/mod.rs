@@ -52,8 +52,6 @@ impl DnsServer {
 
     // TODO: recursive-lookup
     fn lookup_redirect(&self, id: u16, question: &Question) -> Result<DnsPacket> {
-        println!("LOOKING REDIRECT");
-
         // TODO: from config
         let server = ("8.8.8.8", 53);
         let socket = UdpSocket::bind(("0.0.0.0", 43210))?;
@@ -75,8 +73,6 @@ impl DnsServer {
     }
 
     fn lookup_local(&self, request: &DnsPacket) -> Result<Option<DnsPacket>> {
-        println!("LOOKING LOCAL");
-
         let question = request.questions().first().unwrap();
 
         let mut response_builder = Self::default_response_request_builder_from(request);
@@ -90,7 +86,7 @@ impl DnsServer {
         while reader.read_line(&mut buf)? > 0 {
             let tokens = buf.split_whitespace().collect::<Vec<_>>();
 
-            if tokens.is_empty() || tokens[0] == "#" {
+            if tokens.is_empty() || tokens[0] == ";" || tokens[0].as_bytes()[0] == b';' {
                 continue;
             }
 
@@ -133,8 +129,6 @@ impl DnsServer {
     }
 
     fn lookup_cache(&self, request: &DnsPacket) -> Option<DnsPacket> {
-        println!("LOOKING CACHE");
-
         let question = request.questions().first().unwrap();
 
         self.cache.get(question.name()).map(|cached| {
