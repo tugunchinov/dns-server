@@ -7,6 +7,9 @@ mod models;
 mod server;
 mod smart_buffer;
 
+#[cfg(test)]
+mod tests;
+
 fn main() {
     server::DnsServer::new()
         .unwrap()
