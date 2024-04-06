@@ -1,5 +1,4 @@
 // TODO: remove anyhow
-// TODO: use env_logger
 
 mod cache;
 mod helpers;
@@ -11,6 +10,8 @@ mod smart_buffer;
 mod tests;
 
 fn main() {
+    env_logger::init();
+
     server::DnsServer::new()
         .unwrap()
         .run(

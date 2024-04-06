@@ -29,6 +29,8 @@ impl DnsServer {
     }
 
     pub fn run(self, num_workers: usize) -> Result<()> {
+        log::info!("starting server with {num_workers} workers");
+
         let (tx, rx) = mpmc::unbounded();
 
         let this = Arc::new(self);
@@ -43,7 +45,7 @@ impl DnsServer {
 
         for handle in join_handles {
             if let Err(e) = handle.join().expect("failed joining thread") {
-                eprintln!("error while handling requests: {e}");
+                log::error!("error while handling requests: {e}");
             }
         }
 
@@ -142,14 +144,23 @@ impl DnsServer {
         let question = request.questions().first().unwrap();
 
         let response = if let Some(result) = self.lookup_cache(request) {
+            log::info!("found response in cache");
             result
         } else if let Some(result) = self.lookup_local(request)? {
+            log::info!(
+                "found response in local storage. caching result for {}",
+                question.name()
+            );
             self.cache_response_without_ttl(question, &result);
             result
         } else {
             let result = self.lookup_redirect(request.id(), question)?;
 
             if result.result_code() == ResultCode::NoError {
+                log::info!(
+                    "found response on another dns-server. caching redirected result for {}",
+                    question.name()
+                );
                 self.cache_response_with_ttl(question, &result);
             }
             result
@@ -163,7 +174,7 @@ impl DnsServer {
             match self.try_lookup(&request) {
                 Ok(result) => result,
                 Err(e) => {
-                    eprintln!("failed looking-up: {e}");
+                    log::error!("failed looking-up: {e}");
                     Self::default_response_request_builder_from(&request)
                         .result_code(ResultCode::ServerFailure)
                         .build()
@@ -201,13 +212,16 @@ impl DnsServer {
 
         let request = DnsPacket::from_bytes(&buf)?;
 
+        log::info!("received request from {src}");
+
         Ok(tx.send((request, src))?)
     }
 
     fn handle_requests(&self, tx: mpmc::Sender<(DnsPacket, SocketAddr)>) -> Result<()> {
+        log::info!("server started");
         loop {
             if let Err(e) = self.process_request(&tx) {
-                eprintln!("error handling request: {e}");
+                log::error!("error handling request: {e}");
             }
         }
     }
